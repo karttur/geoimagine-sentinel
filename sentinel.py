@@ -593,7 +593,7 @@ class ProcessSentinel:
                 return False
             elif startdate > enddate:
                 print (searchD)
-                BALLE
+                ERRORCHECK
             else:
                 return searchD
    
@@ -667,16 +667,16 @@ class ProcessSentinel:
         #if self.process.params.platformname == 'Sentinel-1':    
         if self.process.proj.defregion == 'global':
             if self.process.params.orbitdirection.upper() != 'B':
-                BALLE
+                ERRORCHECK
             if self.process.params.tiles:
                 tileL = self.session._SelectSentinelTiles(self.process.params,self.process.srcperiod,statusD)
                 self._GetTiles(tileL,api)
             else:
                 granuleL = self.session._SelectSentinelGranules(self.process.params,self.process.srcperiod,statusD)
                 self._GetGranules(granuleL,api)
-                BALLE
+                ERRORCHECK
         else:
-            BALLE
+            ERRORCHECK
 
     def _DownloadSentinelTile(self,mgrs):
         '''
@@ -750,7 +750,7 @@ class ProcessSentinel:
                             printstr = 'Moving granule: %(src)s \n    to %(dst)s' %{'src': srcFPN, 'dst':senGranule.FPN}
                             print (printstr)
                             move(srcFPN,senGranule.FPN)
-                            BALLE
+                            ERRORCHECK
     
                 if downFlag:
                     return
@@ -1093,7 +1093,7 @@ class ProcessSentinel:
             subpath = '%(p)s.SAFE' %{'p':subpath}
             granulePath = os.path.join(tempPath,subpath)
             print ('granulepath',granulePath)
-            BALLE
+            ERRORCHECK
             '''
         if os.path.isdir(granulePath):
             return granulePath
@@ -1108,10 +1108,10 @@ class ProcessSentinel:
         statusD['exploded'] = self.process.params.exploded
         if self.process.proj.defregion == 'global':
             if self.process.params.orbitdirection.upper() != 'B':
-                BALLE
+                ERRORCHECK
             tileL = self.session._SelectSentinelTiles(self.process.params,self.process.srcperiod,statusD)
         else:
-            BALLE
+            ERRORCHECK
         for tile in tileL:
             uuid, tileid, source, product, folder, acqdate, orbitid, utm, mgrsid, mgrs  = tile
 
@@ -1123,7 +1123,7 @@ class ProcessSentinel:
                 senTile = self._ConstructTileLayer(tile)
                 if not os.path.exists(senTile.FPN):
                     print (senTile.FPN)
-                    BALLE
+                    ERRORCHECK
                
                 #construct the target, this is now an ordinary compositionprocess
                 compD = {'source':source,'product':product,'folder':'mask','band':'cloudmask','prefix':'cloudmask','suffix':'esa'}
@@ -1436,9 +1436,9 @@ class ProcessSentinel:
                     maskFPN = self._get_mask_shp(srcFPN, dstFPN, union)
                     print ( dstFPN )
                     return maskFPN
-        BALLE
+        ERRORCHECK
         return False
-        BALLE
+        ERRORCHECK
         #maskFN = os.path.split(srcFPN)[1].replace('.gml','.shp')
         #maskFP = os.path.split(dstFP)[0]
         #print 'maskFP',mdstFPN
@@ -1465,7 +1465,7 @@ class ProcessSentinel:
                     print ( srcFPN )
                     return srcFPN 
         return False
-        BALLE
+        ERRORCHECK
         #maskFN = os.path.split(srcFPN)[1].replace('.gml','.shp')
         #maskFP = os.path.split(dstFP)[0]
         #print 'maskFP',mdstFPN
@@ -1614,7 +1614,7 @@ class ProcessSentinel:
                 if filename.endswith(searchtype) and os.path.isfile(os.path.join(root,filename)):
                     srcFPN = os.path.join(root,filename)
                     if self.process.params.tiles:
-                        BALLE
+                        ERRORCHECK
                         tileL = self.session._SelectSentinelTiles(self.process.params,self.process.srcperiod,statusD)
                         self._GetTiles(tileL,api)
                     else:                        
@@ -1638,9 +1638,9 @@ class ProcessSentinel:
                         elif len(granuleL) == 0:
                             granuleidPartsL = granuleid.split('_')
                             print (granuleidPartsL)
-                            BALLE
+                            ERRORCHECK
                         else:
-                            BALLE
+                            ERRORCHECK
 
 
     def _GeoCheckSentinelTilesOld(self):
@@ -1695,7 +1695,7 @@ class ProcessSentinel:
                         queryD['refcols'] = bandR.metadata.cols
                         queryD['reflins'] = bandR.metadata.lins    
                     else:
-                        BALLE
+                        ERRORCHECK
                     #
                     ptL = ( (minx,maxy),(maxx,maxy),(maxx,miny),(minx,miny) )
                     cornergeom = mj_gis.Geometry()
@@ -1731,7 +1731,7 @@ class ProcessSentinel:
                     utm = [(p.x, p.y) for p in utmgeom.shapelyGeom]
                     print ('utm',utm)
                     
-                    BALLE
+                    ERRORCHECK
                     self.session._InsertTileCoords(queryD)
                     '''
                     print ('lins',bandR.metadata.lins)
