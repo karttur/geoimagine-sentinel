@@ -7,7 +7,7 @@ Created on 8 juni 2018
 import geoimagine.gis.mj_gis_v80 as mj_gis
 import geoimagine.zipper.explode as zipper
 import geoimagine.support.karttur_dt as mj_dt
-from geoimagine.kartturmain import RasterProcess
+#from geoimagine.kartturmain import RasterProcess
 #import geoimagine.sentinel.gml_transform as gml_transform
 from geoimagine.kartturmain import Composition, LayerCommon, VectorLayer, RasterLayer
 #from sentinelsat.sentinel import SentinelAPI
@@ -73,7 +73,7 @@ class ProcessSentinel:
         #direct to subprocess
         if self.process.proc.processid == 'downloadSentinelTile':
             self._DownloadSentinelTile(self.process.params.tileid)
-        if self.process.proc.processid == 'downloadSentinelData':
+        elif 'downloadSentinelData' in self.process.proc.processid:
             self._DownloadSentinelData()
         elif self.process.proc.processid[0:8] == 'download':
             self._LoopSearchLayers()
@@ -83,6 +83,8 @@ class ProcessSentinel:
             self._ExtractSentinelTileCoords('sentinel')
         elif self.process.proc.processid == 'extractmgrscoords':
             self._ExtractSentinelTileCoords('mgrs')
+        elif self.process.proc.processid == 'LinkDefaultRegionsToSentinel':
+            self._LinkDefaultRegionsToSentinel()
         elif self.process.proc.processid == 'findgranuletiles':
             self._FindGranuleTiles()
         elif self.process.proc.processid == 'reorganisesentinel':
@@ -277,7 +279,6 @@ class ProcessSentinel:
     def _ExtractMGRSCoords(self,srcFPN):
         '''Open layer and loop over features
         '''
-
         #from operator import itemgetter
         #from math import sqrt
         southL = ['C','D','E','F','G','H','J','K','L','M']
@@ -393,6 +394,7 @@ class ProcessSentinel:
         #Loop over the features in the layer
         for feature in srcLayer.layer:
             self.searchid = feature.GetField(searchid)
+
             #Craete a geom instance
             geom = mj_gis.Geometry()
             #add the feature and extract the geom
@@ -564,8 +566,8 @@ class ProcessSentinel:
         searchD['searchid'] = self.searchid
         searchD['platformname'] = platform
         searchD['product'] = product
-
-        rec = self.session._SelectVectorSearch(searchD)
+        paramL = ['vectorfile', 'searchid', 'startdate','enddate','platformname','product','cloudcover']
+        rec = self.session._SelectVectorSearch(searchD, paramL)
 
         if rec == None or self.process.overwrite:
             searchD['startdate'] = startdate
@@ -593,7 +595,7 @@ class ProcessSentinel:
                 return False
             elif startdate > enddate:
                 print (searchD)
-                ERRORCHECK
+                BALLE
             else:
                 return searchD
    
@@ -601,6 +603,7 @@ class ProcessSentinel:
         return searchD
 
     def _ConstructTileLayer(self,tile):
+        #TGTODO CHANGE TO DICT ISNTEAD of LIST
         #uuid, tileid, source, product, folder, utm, mgrsid, orbitid, acqdate = tile
 
         uuid, tileid, source, product, folder, acqdate, orbitid, utm, mgrsid, mgrs = tile
@@ -664,19 +667,39 @@ class ProcessSentinel:
         statusD = {}
         # TGTODO downloaded must be in xml, defaulted to N and not obligatory
         statusD['downloaded'] = self.process.params.downloaded
-        #if self.process.params.platformname == 'Sentinel-1':    
-        if self.process.proj.defregion == 'global':
+        #if self.process.params.platformname == 'Sentinel-1':  
+
+        if self.process.proc.userProj.defregion == 'global':
             if self.process.params.orbitdirection.upper() != 'B':
-                ERRORCHECK
+                BALLE
             if self.process.params.tiles:
                 tileL = self.session._SelectSentinelTiles(self.process.params,self.process.srcperiod,statusD)
+                for tile in tileL:
+                    print (tile)
+                SNULLE
                 self._GetTiles(tileL,api)
             else:
                 granuleL = self.session._SelectSentinelGranules(self.process.params,self.process.srcperiod,statusD)
                 self._GetGranules(granuleL,api)
-                ERRORCHECK
+                BALLE
         else:
-            ERRORCHECK
+            #print (self.process.proc.userProj.defregion)
+            statusD['r.regionid'] = self.process.proc.userProj.defregion
+            if self.process.params.orbitdirection.upper() != 'B':
+                BALLE
+            if self.process.params.tiles:
+                
+                tileL = self.session._SelectSentinelTiles(self.process.params,self.process.srcperiod,statusD)
+
+                self._GetTiles(tileL,api)
+            else:
+                granuleL = self.session._SelectSentinelGranules(self.process.params,self.process.srcperiod,statusD)
+                print ('granuleL',granuleL)
+                SNULLE
+                self._GetGranules(granuleL,api)
+                
+                BALLE
+            BALLE
 
     def _DownloadSentinelTile(self,mgrs):
         '''
@@ -709,6 +732,7 @@ class ProcessSentinel:
             else:
                 printstr = '    downloading %(fpn)s' %{'fpn':senTile.FPN}
                 print (printstr)
+
                 api.download(uuid,senTile.FP)
                 if os.path.exists(senTile.FPN):
                     statusD = {'tileid': tileid,'column':'downloaded', 'status': 'Y'}
@@ -750,7 +774,7 @@ class ProcessSentinel:
                             printstr = 'Moving granule: %(src)s \n    to %(dst)s' %{'src': srcFPN, 'dst':senGranule.FPN}
                             print (printstr)
                             move(srcFPN,senGranule.FPN)
-                            ERRORCHECK
+                            BALLE
     
                 if downFlag:
                     return
@@ -1093,7 +1117,7 @@ class ProcessSentinel:
             subpath = '%(p)s.SAFE' %{'p':subpath}
             granulePath = os.path.join(tempPath,subpath)
             print ('granulepath',granulePath)
-            ERRORCHECK
+            BALLE
             '''
         if os.path.isdir(granulePath):
             return granulePath
@@ -1108,10 +1132,10 @@ class ProcessSentinel:
         statusD['exploded'] = self.process.params.exploded
         if self.process.proj.defregion == 'global':
             if self.process.params.orbitdirection.upper() != 'B':
-                ERRORCHECK
+                BALLE
             tileL = self.session._SelectSentinelTiles(self.process.params,self.process.srcperiod,statusD)
         else:
-            ERRORCHECK
+            BALLE
         for tile in tileL:
             uuid, tileid, source, product, folder, acqdate, orbitid, utm, mgrsid, mgrs  = tile
 
@@ -1123,7 +1147,7 @@ class ProcessSentinel:
                 senTile = self._ConstructTileLayer(tile)
                 if not os.path.exists(senTile.FPN):
                     print (senTile.FPN)
-                    ERRORCHECK
+                    MISSINGTILE
                
                 #construct the target, this is now an ordinary compositionprocess
                 compD = {'source':source,'product':product,'folder':'mask','band':'cloudmask','prefix':'cloudmask','suffix':'esa'}
@@ -1320,7 +1344,7 @@ class ProcessSentinel:
 
                 #Loop over the tiles to extract for this granule
                 for tile in tileL:
-                    print ('tile',tile)
+
                     #Get the mgrs details
                     rec = self.session._SelectMGRS(tile)
                     if rec == None:
@@ -1436,9 +1460,9 @@ class ProcessSentinel:
                     maskFPN = self._get_mask_shp(srcFPN, dstFPN, union)
                     print ( dstFPN )
                     return maskFPN
-        ERRORCHECK
+        BALLE
         return False
-        ERRORCHECK
+        BALLE
         #maskFN = os.path.split(srcFPN)[1].replace('.gml','.shp')
         #maskFP = os.path.split(dstFP)[0]
         #print 'maskFP',mdstFPN
@@ -1465,7 +1489,7 @@ class ProcessSentinel:
                     print ( srcFPN )
                     return srcFPN 
         return False
-        ERRORCHECK
+        BALLE
         #maskFN = os.path.split(srcFPN)[1].replace('.gml','.shp')
         #maskFP = os.path.split(dstFP)[0]
         #print 'maskFP',mdstFPN
@@ -1614,7 +1638,7 @@ class ProcessSentinel:
                 if filename.endswith(searchtype) and os.path.isfile(os.path.join(root,filename)):
                     srcFPN = os.path.join(root,filename)
                     if self.process.params.tiles:
-                        ERRORCHECK
+                        BALLE
                         tileL = self.session._SelectSentinelTiles(self.process.params,self.process.srcperiod,statusD)
                         self._GetTiles(tileL,api)
                     else:                        
@@ -1638,9 +1662,9 @@ class ProcessSentinel:
                         elif len(granuleL) == 0:
                             granuleidPartsL = granuleid.split('_')
                             print (granuleidPartsL)
-                            ERRORCHECK
+                            BALLE
                         else:
-                            ERRORCHECK
+                            BALLE
 
 
     def _GeoCheckSentinelTilesOld(self):
@@ -1695,7 +1719,7 @@ class ProcessSentinel:
                         queryD['refcols'] = bandR.metadata.cols
                         queryD['reflins'] = bandR.metadata.lins    
                     else:
-                        ERRORCHECK
+                        BALLE
                     #
                     ptL = ( (minx,maxy),(maxx,maxy),(maxx,miny),(minx,miny) )
                     cornergeom = mj_gis.Geometry()
@@ -1731,7 +1755,7 @@ class ProcessSentinel:
                     utm = [(p.x, p.y) for p in utmgeom.shapelyGeom]
                     print ('utm',utm)
                     
-                    ERRORCHECK
+                    BALLE
                     self.session._InsertTileCoords(queryD)
                     '''
                     print ('lins',bandR.metadata.lins)
@@ -1768,4 +1792,102 @@ class ProcessSentinel:
                     '''
                     COOL
                 
+                
+                
+    def _LinkDefaultRegionsToSentinel(self):
+        '''This is just a complicated manner to get the sentinel tile file in lonlat projection
+        '''
+        for locus in self.process.srcLayerD:
+            if len(self.process.srcLayerD[locus]) == 0:
+                exitstr = 'EXITING, no dates defined in Sentinel._ExtractSentinelTileCoords'
+                exit(exitstr)
+            for datum in self.process.srcLayerD[locus]:
+                if len(self.process.srcLayerD[locus][datum]) == 0:
+                    exitstr = 'EXITING, no compositions defined in Sentinel._ExtractSentinelTileCoords'
+                    exit(exitstr)
+                for comp in self.process.srcLayerD[locus][datum]:
+                    self.srcLayer = self.process.srcLayerD[locus][datum][comp]
+        self._GetSentinelTilesDict()
+        self._GetSystemDefRegions()
+
+        
+    def _GetSentinelTilesDict(self):
+        '''
+        '''
+        recs = self.session._SelectSentinelTileCoords({})
+        self.senTileD ={}
+        for rec in recs:
+            epsg,mgrs,utmzone,mgrsid,minx,miny,maxx,maxy,ullat,ullon,lrlat,lrlon,urlat,urlon,lllat,lllon = rec
+            llptL = ((ullon,ullat),(urlon,urlat),(lrlon,lrlat),(lllon,lllat))
+            sentilegeom = mj_gis.Geometry()
+            sentilegeom.PointsToPolygonGeom(llptL)
+            west, south, east, north = sentilegeom.shapelyGeom.bounds
+            self.senTileD[mgrs] = {'mgrs':mgrs,'mgrsid':mgrsid,'utmzone':utmzone,'geom':sentilegeom,
+                                  'west':west,'south':south,'east':east,'north':north}
+       
+    def _GetSystemDefRegions(self):
+        '''
+        '''
+        #I need the layer for the region that is not in the regionsmodis table
+        wherestatement = 'WHERE M.regionid IS NULL'
+        recs = self.session._SelectAllDefRegions(wherestatement)
+
+        for rec in recs:          
+            compid = 'defaultregions_roi'
+            folder = 'defaultregions'
+            band = 'roi'
+            regionid = rec[1]
+            compD = {'compid': compid,'folder':folder, 'band':band}
+            system = 'system'
+            
+            layerComp = self.session._SelectComp(system,compD)
+            #
+            system = 'system'
+            comp = Composition(layerComp, system, self.process.system.srcdivision)
+            #
+            queryD = {}
+            queryD['compid'] = comp.compid
+            queryD['regionid'] = regionid.lower()
+
+            paramL = ['source', 'product', 'suffix', 'acqdate', 'acqdatestr', 'doy', 'createdate', 'regionid']
+            print ('finding mgrs for',rec)
+            layerrec = self.session._SelectLayer(system,queryD,paramL)
+
+            if layerrec == None:
+                continue 
+            source, product, suffix, acqdate, acqdatestr, doy, createdate, regionid = layerrec
+            if acqdate == None:
+                acqdate = False
+            datumD = {'acqdatestr': acqdatestr,'acqdate':acqdate}
+            #Set the locus         
+            loc = regionid
+            #Set the locuspath
+            locusPath = regionid
+            #Construct the locus dictionary
+            locusD = {'locus':loc, 'locusPath':locusPath, 'path':locusPath}
+            #Create the layer
+            layer = VectorLayer(comp, locusD, datumD, self.process.srcpath)
+            #Get the layer and the geom
+            srcDS,srcLayer = mj_gis.ESRIOpenGetLayer(layer.FPN)
+            for feature in srcLayer.layer:  
+                geom = mj_gis.Geometry()
+                #add the feature and extract the geom
+                geom.GeomFromFeature(feature)
+                if srcLayer.geomtype.lower() != 'polygon':
+                    ERRORIGEN
+                west, south, east, north = geom.shapelyGeom.bounds
+                #Get the tiles inside this region
+                tiles = self.session._SearchTilesFromWSEN(west, south, east, north)
+                for tile in tiles:
+                    #hvtile,htile,vtile,west,south,east,north,ullon,ullat,urlon,urlat,lrlon,lrlat,lllon,lllat, minx, miny, maxx, maxy = tile
+                    mgrs,west,south,east,north,ullon,ullat,urlon,urlat,lrlon,lrlat,lllon,lllat, minx, miny, maxx, maxy = tile
+                    llptL = ((ullon,ullat),(urlon,urlat),(lrlon,lrlat),(lllon,lllat))
+                    tilegeom = mj_gis.Geometry()
+                    tilegeom.PointsToPolygonGeom(llptL)
+                    #Get the overlap
+                    overlapGeom = tilegeom.ShapelyIntersection(self.senTileD[mgrs]['geom'])  
+                    productoverlap = overlapGeom.area/tilegeom.shapelyGeom.area
+                    if productoverlap >= 0:
+                        query = {'system':'system', 'regionid':regionid,'regiontype':'default', 'overwrite':False, 'delete':False, 'mgrs':mgrs,'utmzone':self.senTileD[mgrs]['utmzone'], 'mgrsid':self.senTileD[mgrs]['mgrsid']}
+                        self.session._InsertSentinelRegionTile(query)
   
